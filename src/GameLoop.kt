@@ -1,44 +1,83 @@
 // GameLoop.kt
-// Verwaltet den Spielablauf: Ball bewegen, Spielstand aktualisieren, Daten an alle Clients senden
-
 import java.util.*
 import java.io.PrintWriter
 import java.util.concurrent.CopyOnWriteArrayList
 
 object GameLoop {
-    // Liste aller verbundenen Clients, an die der Zustand gesendet wird
     val clients = CopyOnWriteArrayList<PrintWriter>()
-
-    // Der zentrale Spielzustand, von allen geteilt
     val state = GameState()
 
+    // Spielfeld & Objekte
+    val canvasWidth = 750
+    val canvasHeight = 585
+    val ballRadius = 10
+    val paddleWidth = 10
+    val paddleHeight = 80
+    val paddle1X = 20
+    val paddle2X = canvasWidth - 20 - paddleWidth // = 720
+
     fun start() {
-        // Spiel-Timer (Ticker): wird alle 100 Millisekunden ausgelöst (10x pro Sekunde)
+        println("🎮 GameLoop gestartet")
+
         Timer().scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
-                // Ballposition updaten
+                // Ball bewegen
                 state.ballX += state.ballVelX
                 state.ballY += state.ballVelY
 
-                // Ball bounct oben/unten
-                if (state.ballY <= 0 || state.ballY >= 400) state.ballVelY *= -1
+                // Wand oben/unten
+                if (state.ballY <= ballRadius || state.ballY >= canvasHeight - ballRadius) {
+                    state.ballVelY *= -1
+                    println("⬆️⬇️ Ball bounced oben/unten")
+                }
 
-                // Ball bounct links/rechts (noch keine Punktelogik)
-                if (state.ballX <= 0 || state.ballX >= 600) state.ballVelX *= -1
+                // Paddle 1 (links)
+                if (state.ballX - ballRadius <= paddle1X + paddleWidth &&
+                    state.ballY >= state.paddle1Y &&
+                    state.ballY <= state.paddle1Y + paddleHeight &&
+                    state.ballVelX < 0 // Ball kommt von rechts
+                ) {
+                    state.ballVelX *= -1
+                    println("🎯 Ball bounced an Paddle 1")
+                }
 
-                // Spielstand als JSON für den Client serialisieren
+                // Paddle 2 (rechts)
+                if (state.ballX + ballRadius >= paddle2X &&
+                    state.ballY >= state.paddle2Y &&
+                    state.ballY <= state.paddle2Y + paddleHeight &&
+                    state.ballVelX > 0 // Ball kommt von links
+                ) {
+                    state.ballVelX *= -1
+                    println("🎯 Ball bounced an Paddle 2")
+                }
+
+                // OUT OF BOUNDS rechts/links (optional Punkt)
+                if (state.ballX < -ballRadius || state.ballX > canvasWidth + ballRadius) {
+                    println("💀 Ball verloren – Reset")
+                    resetBall()
+                }
+
+                // Debug
+                println("📤 Tick → Ball: (${state.ballX}, ${state.ballY}) | P1: ${state.paddle1Y} | P2: ${state.paddle2Y}")
+
+                // JSON senden
                 val json = """{
-                    "ballX": ${state.ballX},
-                    "ballY": ${state.ballY},
-                    "p1": ${state.paddle1Y},
-                    "p2": ${state.paddle2Y}
-                }"""
-
-                // An alle verbundenen Clients senden
+  "ballX": ${state.ballX},
+  "ballY": ${state.ballY},
+  "p1": ${state.paddle1Y},
+  "p2": ${state.paddle2Y}
+}"""
                 for (client in clients) {
                     client.println(json)
                 }
             }
-        }, 0, 100) // Startverzögerung = 0ms, Intervall = 100ms
+        }, 0, 100)
+    }
+
+    fun resetBall() {
+        state.ballX = canvasWidth / 2
+        state.ballY = canvasHeight / 2
+        state.ballVelX = if ((0..1).random() == 0) 4 else -4
+        state.ballVelY = if ((0..1).random() == 0) 4 else -4
     }
 }
