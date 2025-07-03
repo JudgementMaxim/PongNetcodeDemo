@@ -1,122 +1,101 @@
-# 🏓 Pong Netcode Demo (Kotlin Server + Prediction)
+# Pong TCP Game Server (Kotlin)
 
-**Ziel dieses Projekts:**  
-Ein einfaches Pong-Spiel, das demonstriert, wie Netzwerkverzögerung kompensiert werden kann – mit **Client Prediction**, **Server Reconciliation** und **künstlicher Latenz**.
-
----
-
-## 🎯 Features
-
-- ✅ Pong-Gameplay mit Ball & Paddle
-- ✅ TCP-Netzwerkkommunikation (Client ↔ Server)
-- ✅ Künstliche Latenz-Simulation (z. B. 150 ms)
-- ✅ Client Prediction (Bewegung sofort anzeigen)
-- ✅ Server Reconciliation (Korrektur bei Abweichung)
-- ✅ Umschaltbar: Prediction & Latenz
-- ✅ Optional: Docker für einfachen Deployment
+**Präsentation:** Spiele-Netzwerkarchitektur unter Linux  
+**Modul:** Betriebssysteme und Verteilte Systeme (2. Semester)  
+**Komponente:** Server (Kotlin TCP)
 
 ---
 
-## 🧱 Projektstruktur
+## 🧠 Projektbeschreibung
 
-```plaintext
-pong-netcode-demo/
-│
-├── server/                   ← Kotlin TCP-Server
-│   ├── GameServer.kt
-│   └── GameState.kt
-│
-├── client/                   ← GUI oder CLI-Client (z. B. JS, Kotlin Desktop)
-│   └── PongClient.kt
-│
-├── docker/
-│   └── Dockerfile.server     ← Für Kotlin Server
-│
-└── README.md                 ← Dieses Dokument
+Diese Komponente bildet den Server für ein Pong-Spiel im Rahmen einer Hochschulpräsentation.  
+Der Fokus liegt auf der Verwendung von **TCP-Sockets**, einem eigenen **Spielzustandsmodell** und einer **Tick-basierten Spielschleife**.
+
+Der Server ist so konzipiert, dass er mit einer Node.js-basierten WebSocket-Bridge zusammenarbeitet,  
+um die Kommunikation mit einem browserbasierten Frontend zu ermöglichen (siehe separater Client-Teil).
+
+---
+
+## ⚙️ Technologien
+
+- Kotlin (JVM)
+- Java TCP (ServerSocket)
+- TimerTask-basierte GameLoop
+- JSON-Ausgabe an Clients (ohne externe Bibliotheken)
+- Multithreading mit ExecutorService
+
+---
+
+## 📂 Projektstruktur
+
+pong-server/
+├── GameState.kt # Zentrale Datenstruktur: Ball, Paddle, Velocity
+├── GameLoop.kt # Spielschleife (Ticker), Kollisionslogik, Broadcast
+├── GameServer.kt # TCP-Server, verarbeitet eingehende Client-Kommandos
+└── README_Server.md
+
+
+---
+
+## 🔁 Netzwerkprotokoll
+
+### Eingaben (vom Client an Server, über TCP)
+
+Textbasierte Steuerbefehle:
+
+- `"up1"` – Paddle 1 (links) nach oben
+- `"down1"` – Paddle 1 nach unten
+- `"up2"` – Paddle 2 (rechts) nach oben
+- `"down2"` – Paddle 2 nach unten
+
+### Ausgaben (vom Server an Client)
+
+Der Spielzustand wird als JSON-String an alle verbundenen Clients gesendet:
+
+```json
+{
+  "ballX": 412,
+  "ballY": 220,
+  "p1": 180,
+  "p2": 200
+}
 ```
 
----
+Der Broadcast erfolgt standardmäßig alle 100 Millisekunden.
+▶️ Server starten
+🔧 Voraussetzungen
 
-## 🚦 Ablaufdiagramm
+    Kotlin Compiler (kotlinc)
 
-```plaintext
-[Client Input] → (Prediction lokal) → [an Server senden]
-                                 ↓
-                          [Server verarbeitet]
-                                 ↓
-                    [GameState an Client zurück]
-                                 ↓
-             [Client vergleicht Prediction vs Server]
-                 → Wenn abweichend: Reconciliation
-```
+    JDK 17+ empfohlen
 
----
+🧪 Kompilieren und Ausführen
 
-## 🧪 Simulation: Latenz & Prediction sichtbar machen
-
-| Modus               | Beschreibung |
-|---------------------|--------------|
-| `Prediction OFF`    | Paddle reagiert nur nach Serverantwort → wirkt verzögert |
-| `Prediction ON`     | Paddle bewegt sich sofort → glatter Eindruck |
-| `Reconciliation`    | Wenn Position zu stark abweicht → visuelles „Zurückspringen“ |
-| `Latency Slider`    | 0–500 ms künstliche Verzögerung zur Demonstration |
-
----
-
-## 🔧 Starten des Servers (ohne Docker)
-
-### Voraussetzungen:
-- Java 17+
-- Kotlin CLI oder IntelliJ
-
-```bash
-cd server
-kotlinc GameServer.kt -include-runtime -d server.jar
+kotlinc GameState.kt GameLoop.kt GameServer.kt -include-runtime -d server.jar
 java -jar server.jar
-```
 
----
+    Der Server öffnet TCP-Port 12345 und akzeptiert parallele Verbindungen (Thread-basiert).
 
-## 🐳 Starten mit Docker
+📌 Hinweise zur Präsentation
 
-```bash
-cd docker
-docker build -t pong-server .
-docker run -p 12345:12345 pong-server
-```
+    Die Spielphysik (Ballbewegung, Kollisionsverhalten) ist vollständig im Server implementiert.
 
----
+    Die Web-Clients (Browser) interagieren nur indirekt über eine separate WebSocket-Bridge (Node.js).
 
-## 🎮 Steuerung (Client)
+    Der Aufbau eignet sich zur Veranschaulichung von:
 
-- ↑ / ↓  → Paddle bewegen
-- `P`    → Prediction an/aus
-- `L`    → Latenz erhöhen/vermindern
+        TCP-Kommunikation
 
----
+        Verteilten Zuständen
 
-## 🧠 Begriffe (kurz erklärt)
+        GameLoop-Architektur
 
-### Client Prediction
-> Spielerinput wird sofort lokal angezeigt, ohne auf Serverantwort zu warten.
+        Brücken-Pattern (TCP ↔ WebSocket)
 
-### Server Reconciliation
-> Der Server hat das letzte Wort. Wenn die lokale Vorhersage falsch war, wird der echte Zustand vom Server durchgesetzt.
+📚 Lizenz / Verwendung
 
-### Rollback (optional)
-> Der Client "springt zurück" zum alten Zustand und wendet neue Inputs erneut an (nicht Teil dieser Demo).
+Dieses Projekt dient ausschließlich zu Lehr- und Demonstrationszwecken
+im Rahmen des Moduls Betriebssysteme und Verteilte Systeme
+an einer deutschen Hochschule (2. Semester).
 
----
-
-## 📚 Quellen
-
-- [Gaffer on Games – Client Prediction](https://gafferongames.com/post/client_server_game_loop/)
-- [Valve Netcode Overview](https://developer.valvesoftware.com/wiki/Source_Multiplayer_Networking)
-- [GGPO – Rollback Explained](https://www.ggpo.net/)
-
----
-
-## 📬 Kontakt / Autor
-
-Erstellt im Rahmen einer Uni-Präsentation über Echtzeit Multiplayer Architekturen unter Linux (2. Semester).  
-Kotlin-Server by Maxim Skalenko
+Keine kommerzielle Nutzung vorgesehen.
