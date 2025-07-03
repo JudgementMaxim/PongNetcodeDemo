@@ -1,0 +1,7 @@
+FROM openjdk:17-alpine
+WORKDIR /app
+
+# Kopiere kompiliertes Jar aus IntelliJ-Projekt
+COPY out/production/pong-netcode-demo/ ./server/
+
+CMD ["java", "-cp", "./server", "GameServerKt"]
